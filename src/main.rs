@@ -1,3 +1,5 @@
+mod inventory;
+
 #[macro_use] extern crate prettytable;
 use std::error::Error;
 use std::{io, fmt};
@@ -7,6 +9,7 @@ use serde::Deserialize;
 use prettytable::{Table, Row, Cell};
 use prettytable::format;
 use prettytable::format::Alignment;
+use crate::inventory::Inventory;
 
 
 #[derive(Debug, Deserialize)]
@@ -29,16 +32,18 @@ struct TradingRecord {
     #[serde(alias = "buy or sell")]
     buy_or_sell: TradeType,
     code: String,
-    volume: i32,
+    volume: u32,
     price: f32,
     fee: f32
 }
 
-fn calculateTotal(price: f32, volume: i32, fee: f32) -> f32 {
+fn calculateTotal(price: f32, volume: u32, fee: f32) -> f32 {
     price * (volume as f32) + fee
 }
 
 fn read_transactions() -> Result<(), Box<dyn Error>> {
+    let mut inventory = Inventory::new();
+
     let mut table = Table::new();
     table.set_titles(row!["Date", "Trade", "Code", "Volume", "Price", "Fee", "Total"]);
 
@@ -50,12 +55,19 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
         row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
         let mut totalString = format!("{:.2}", calculateTotal(record.price, record.volume, record.fee));
+
         match record.buy_or_sell {
-            TradeType::BUY => totalString.insert_str(0, "- "),
-            _ => (),
+            TradeType::BUY => {
+                totalString.insert_str(0, "- ");
+                inventory.buy(&record.code, record.volume, record.price, record.fee);
+            },
+            TradeType::SELL => {
+                // TODO
+            }
         }
         row.add_cell(Cell::new_align(&totalString, Alignment::RIGHT));
         table.add_row(row);
+
     }
 
     table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
