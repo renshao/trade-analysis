@@ -6,6 +6,12 @@ struct BuyItem {
     remaining_fee: f32
 }
 
+pub struct Fulfillment {
+    // quantity, bought price, buying transaction fee
+    pub(crate) items: Vec<(u32, f32, f32)>,
+    pub(crate) net_profit: f32
+}
+
 pub struct Inventory {
     shares_map: HashMap<String, Vec<BuyItem>>
 }
@@ -27,5 +33,41 @@ impl Inventory {
             price: price,
             remaining_fee: fee
         });
+    }
+
+    pub fn sell(&mut self, code: &str, volume: u32, price: f32, fee: f32) -> Fulfillment {
+        let mut items = Vec::new();
+        let stocks = self.shares_map.get_mut(code).unwrap();
+        let mut quantity_to_fulfill = volume;
+        let mut net_profit = -fee;
+        loop {
+            let first_stock = stocks.get_mut(0).unwrap();
+            let q = if quantity_to_fulfill <= first_stock.shares {quantity_to_fulfill} else {first_stock.shares};
+            net_profit += q as f32 * (price - first_stock.price);
+            quantity_to_fulfill -= q;
+            first_stock.shares -= q;
+
+            let buying_transaction_fee;
+            if (first_stock.remaining_fee > 0.0) {
+                buying_transaction_fee = first_stock.remaining_fee;
+                first_stock.remaining_fee = 0.0;
+                net_profit -= buying_transaction_fee;
+            } else {
+                buying_transaction_fee = 0.0;
+            }
+            items.push((q, first_stock.price, buying_transaction_fee));
+            if (first_stock.shares == 0) {
+                stocks.remove(0);
+            }
+
+            if (quantity_to_fulfill == 0) {
+                break;
+            }
+        }
+
+        Fulfillment {
+            items,
+            net_profit
+        }
     }
 }

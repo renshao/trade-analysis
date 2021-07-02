@@ -285,6 +285,7 @@ dependencies = [
  "csv",
  "prettytable-rs",
  "serde",
+ "term",
 ]
 
 [[package]]

@@ -10,3 +10,4 @@ edition = "2018"
 csv = "1.1"
 serde = { version = "1", features = ["derive"] }
 prettytable-rs = "^0.8"
+term = "*"

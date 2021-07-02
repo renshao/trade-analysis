@@ -10,6 +10,9 @@ use prettytable::{Table, Row, Cell};
 use prettytable::format;
 use prettytable::format::Alignment;
 use crate::inventory::Inventory;
+use std::panic::resume_unwind;
+use prettytable::{Attr, color};
+use std::sync::atomic::Ordering::AcqRel;
 
 
 #[derive(Debug, Deserialize)]
@@ -60,13 +63,37 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
             TradeType::BUY => {
                 totalString.insert_str(0, "- ");
                 inventory.buy(&record.code, record.volume, record.price, record.fee);
+                row.add_cell(Cell::new_align(&totalString, Alignment::RIGHT));
+                table.add_row(row);
             },
             TradeType::SELL => {
-                // TODO
+                let fulfullment = inventory.sell(&record.code, record.volume, record.price, record.fee);
+                let mut fulfillment_table = Table::new();
+                fulfillment_table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+
+                let mut i = 0;
+                for (quantity, bought_price, bought_fee) in fulfullment.items {
+                    if i == 0 {
+                        let mut row = row![record.date, record.buy_or_sell, record.code];
+                        row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{} x {}", quantity, bought_price), Alignment::RIGHT));
+                        table.add_row(row);
+                    } else {
+                        let mut row = row!["", "", "", "", "", ""];
+                        row.add_cell(Cell::new_align(&format!("{} x {}", quantity, bought_price), Alignment::RIGHT));
+                        table.add_row(row);
+                    }
+                    i += 1;
+                }
+                let mut row = row!["", "", "", "", "", ""];
+                let style = if fulfullment.net_profit < 0.0 { Attr::ForegroundColor(color::RED) } else { Attr::ForegroundColor(color::GREEN) };
+                row.add_cell(Cell::new(&format!("net: {}", fulfullment.net_profit)).with_style(style));
+                table.add_row(row);
             }
         }
-        row.add_cell(Cell::new_align(&totalString, Alignment::RIGHT));
-        table.add_row(row);
+
 
     }
 
