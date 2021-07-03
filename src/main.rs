@@ -81,9 +81,9 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                     if i == 0 {
                         let mut row = row![datetime.format("%Y-%m-%d"), record.buy_or_sell, record.code];
                         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
-                        row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{:.2}", &record.price), Alignment::RIGHT));
                         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
-                        row.add_cell(Cell::new_align(&format!("{} x {}", quantity, bought_price), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{} x {:.2}", quantity, bought_price), Alignment::RIGHT));
                         table.add_row(row);
                     } else {
                         let mut row = row!["", "", "", "", "", ""];
