@@ -51,7 +51,7 @@ impl Inventory {
             first_stock.shares -= q;
 
             let buying_transaction_fee;
-            if (first_stock.remaining_fee > 0.0) {
+            if first_stock.remaining_fee > 0.0 {
                 buying_transaction_fee = first_stock.remaining_fee;
                 first_stock.remaining_fee = 0.0;
                 net_profit -= buying_transaction_fee;
@@ -59,11 +59,11 @@ impl Inventory {
                 buying_transaction_fee = 0.0;
             }
             items.push((q, first_stock.price, buying_transaction_fee));
-            if (first_stock.shares == 0) {
+            if first_stock.shares == 0 {
                 stocks.remove(0);
             }
 
-            if (quantity_to_fulfill == 0) {
+            if quantity_to_fulfill == 0 {
                 break;
             }
         }

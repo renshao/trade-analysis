@@ -6,15 +6,12 @@ use std::{io, fmt};
 use std::process;
 use std::fs::File;
 use serde::Deserialize;
-use prettytable::{Table, Row, Cell};
+use prettytable::{Table, Cell};
 use prettytable::format;
 use prettytable::format::Alignment;
 use crate::inventory::Inventory;
-use std::panic::resume_unwind;
 use prettytable::{Attr, color};
-use std::sync::atomic::Ordering::AcqRel;
 use chrono::{NaiveDateTime, Datelike};
-
 
 #[derive(Debug, Deserialize)]
 enum TradeType {
@@ -41,7 +38,7 @@ struct TradingRecord {
     fee: f32
 }
 
-fn calculateTotal(price: f32, volume: u32, fee: f32) -> f32 {
+fn calculate_total(price: f32, volume: u32, fee: f32) -> f32 {
     price * (volume as f32) + fee
 }
 
@@ -60,13 +57,13 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
-        let mut totalString = format!("{:.2}", calculateTotal(record.price, record.volume, record.fee));
+        let mut total_string = format!("{:.2}", calculate_total(record.price, record.volume, record.fee));
 
         match record.buy_or_sell {
             TradeType::BUY => {
-                totalString.insert_str(0, "- ");
+                total_string.insert_str(0, "- ");
                 inventory.buy(&record.code, record.volume, record.price, record.fee);
-                row.add_cell(Cell::new_align(&totalString, Alignment::RIGHT));
+                row.add_cell(Cell::new_align(&total_string, Alignment::RIGHT));
                 table.add_row(row);
             },
             TradeType::SELL => {
@@ -77,7 +74,7 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                 fulfillment_table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
 
                 let mut i = 0;
-                for (quantity, bought_price, bought_fee) in fulfullment.items {
+                for (quantity, bought_price, _bought_fee) in fulfullment.items {
                     if i == 0 {
                         let mut row = row![datetime.format("%Y-%m-%d"), record.buy_or_sell, record.code];
                         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
