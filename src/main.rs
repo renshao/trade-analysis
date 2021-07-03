@@ -13,6 +13,7 @@ use crate::inventory::Inventory;
 use std::panic::resume_unwind;
 use prettytable::{Attr, color};
 use std::sync::atomic::Ordering::AcqRel;
+use chrono::{NaiveDateTime, Datelike};
 
 
 #[derive(Debug, Deserialize)]
@@ -53,7 +54,9 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
     let mut rdr = csv::Reader::from_reader(io::BufReader::new(File::open("trades.csv")?));
     for result in rdr.deserialize() {
         let record: TradingRecord = result?;
-        let mut row = row![record.date, record.buy_or_sell, record.code];
+
+        let datetime = NaiveDateTime::parse_from_str(&record.date, "%Y-%m-%d %H:%M:%S").unwrap();
+        let mut row = row![datetime.format("%Y-%m-%d"), record.buy_or_sell, record.code];
         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
@@ -67,14 +70,16 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                 table.add_row(row);
             },
             TradeType::SELL => {
-                let fulfullment = inventory.sell(&record.code, record.volume, record.price, record.fee);
+                let financial_year = if datetime.date().month() < 7 {datetime.date().year()} else {datetime.date().year() + 1};
+
+                let fulfullment = inventory.sell(financial_year as u32, &record.code, record.volume, record.price, record.fee);
                 let mut fulfillment_table = Table::new();
                 fulfillment_table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
 
                 let mut i = 0;
                 for (quantity, bought_price, bought_fee) in fulfullment.items {
                     if i == 0 {
-                        let mut row = row![record.date, record.buy_or_sell, record.code];
+                        let mut row = row![datetime.format("%Y-%m-%d"), record.buy_or_sell, record.code];
                         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
                         row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
                         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
@@ -82,14 +87,14 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                         table.add_row(row);
                     } else {
                         let mut row = row!["", "", "", "", "", ""];
-                        row.add_cell(Cell::new_align(&format!("{} x {}", quantity, bought_price), Alignment::RIGHT));
+                        row.add_cell(Cell::new_align(&format!("{} x {:.2}", quantity, bought_price), Alignment::RIGHT));
                         table.add_row(row);
                     }
                     i += 1;
                 }
                 let mut row = row!["", "", "", "", "", ""];
                 let style = if fulfullment.net_profit < 0.0 { Attr::ForegroundColor(color::RED) } else { Attr::ForegroundColor(color::GREEN) };
-                row.add_cell(Cell::new(&format!("net: {}", fulfullment.net_profit)).with_style(style));
+                row.add_cell(Cell::new_align(&format!("net: {:.2}", fulfullment.net_profit), Alignment::RIGHT).with_style(style));
                 table.add_row(row);
             }
         }
@@ -99,6 +104,11 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
 
     table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
     table.printstd();
+
+    for (fy, profit) in inventory.fy_profit_map {
+        println!("{}: {:.2}", fy, profit);
+    }
+
     Ok(())
 }
 

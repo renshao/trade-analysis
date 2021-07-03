@@ -13,13 +13,16 @@ pub struct Fulfillment {
 }
 
 pub struct Inventory {
-    shares_map: HashMap<String, Vec<BuyItem>>
+    shares_map: HashMap<String, Vec<BuyItem>>,
+    // financial year -> profit
+    pub(crate) fy_profit_map: HashMap<u32, f32>
 }
 
 impl Inventory {
     pub fn new() -> Inventory {
         Inventory {
-            shares_map: HashMap::new()
+            shares_map: HashMap::new(),
+            fy_profit_map: HashMap::new()
         }
     }
 
@@ -35,7 +38,7 @@ impl Inventory {
         });
     }
 
-    pub fn sell(&mut self, code: &str, volume: u32, price: f32, fee: f32) -> Fulfillment {
+    pub fn sell(&mut self, fy: u32, code: &str, volume: u32, price: f32, fee: f32) -> Fulfillment {
         let mut items = Vec::new();
         let stocks = self.shares_map.get_mut(code).unwrap();
         let mut quantity_to_fulfill = volume;
@@ -65,9 +68,20 @@ impl Inventory {
             }
         }
 
+        self.record_fy_profit(fy, net_profit);
+
         Fulfillment {
             items,
             net_profit
+        }
+    }
+
+    fn record_fy_profit(&mut self, fy: u32, profit: f32) {
+        if !self.fy_profit_map.contains_key(&fy) {
+            self.fy_profit_map.insert(fy, profit);
+        } else {
+            let new_profit = self.fy_profit_map.get(&fy).unwrap() + profit;
+            self.fy_profit_map.insert(fy, new_profit);
         }
     }
 }
