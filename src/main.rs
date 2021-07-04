@@ -17,12 +17,14 @@ use chrono::{NaiveDateTime, Datelike};
 enum TradeType {
     BUY,
     SELL,
+    DIV
 }
 impl fmt::Display for TradeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             TradeType::BUY => write!(f, "BUY"),
             TradeType::SELL => write!(f, "SELL"),
+            TradeType::DIV => write!(f, "DIV"),
         }
     }
 }
@@ -58,6 +60,7 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
         row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
         row.add_cell(Cell::new_align(&format!("{:.2}", record.fee), Alignment::RIGHT));
         let mut total_string = format!("{:.2}", calculate_total(record.price, record.volume, record.fee));
+        let financial_year = if datetime.date().month() < 7 {datetime.date().year()} else {datetime.date().year() + 1} as u32;
 
         match record.buy_or_sell {
             TradeType::BUY => {
@@ -67,14 +70,12 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                 table.add_row(row);
             },
             TradeType::SELL => {
-                let financial_year = if datetime.date().month() < 7 {datetime.date().year()} else {datetime.date().year() + 1};
-
-                let fulfullment = inventory.sell(financial_year as u32, &record.code, record.volume, record.price, record.fee);
+                let fulfillment = inventory.sell(financial_year, &record.code, record.volume, record.price, record.fee);
                 let mut fulfillment_table = Table::new();
                 fulfillment_table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
 
                 let mut i = 0;
-                for (quantity, bought_price, _bought_fee) in fulfullment.items {
+                for (quantity, bought_price, _bought_fee) in fulfillment.items {
                     if i == 0 {
                         let mut row = row![datetime.format("%Y-%m-%d"), record.buy_or_sell, record.code];
                         row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
@@ -90,13 +91,20 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                     i += 1;
                 }
                 let mut row = row!["", "", "", "", "", ""];
-                let style = if fulfullment.net_profit < 0.0 { Attr::ForegroundColor(color::RED) } else { Attr::ForegroundColor(color::GREEN) };
-                row.add_cell(Cell::new_align(&format!("net: {:.2}", fulfullment.net_profit), Alignment::RIGHT).with_style(style));
+                let style = if fulfillment.net_profit < 0.0 { Attr::ForegroundColor(color::RED) } else { Attr::ForegroundColor(color::GREEN) };
+                row.add_cell(Cell::new_align(&format!("net: {:.2}", fulfillment.net_profit), Alignment::RIGHT).with_style(style));
+                table.add_row(row);
+            },
+            TradeType::DIV => { // dividend
+                inventory.record_dividend(financial_year, &record.code, record.volume, record.price);
+                let mut row = row![datetime.format("%Y-%m-%d"), TradeType::DIV, record.code];
+                row.add_cell(Cell::new_align(&record.volume.to_string(), Alignment::RIGHT));
+                row.add_cell(Cell::new_align(&format!("{:.3}", &record.price), Alignment::RIGHT));
+                row.add_cell(Cell::new(""));
+                row.add_cell(Cell::new_align(&total_string, Alignment::RIGHT).with_style(Attr::BackgroundColor(color::GREEN)));
                 table.add_row(row);
             }
         }
-
-
     }
 
     table.set_format(*format::consts::FORMAT_NO_LINESEP_WITH_TITLE);

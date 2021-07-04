@@ -76,6 +76,10 @@ impl Inventory {
         }
     }
 
+    pub fn record_dividend(&mut self, fy: u32, _code: &str, volume: u32, amount: f32) {
+        self.record_fy_profit(fy, volume as f32 * amount);
+    }
+
     fn record_fy_profit(&mut self, fy: u32, profit: f32) {
         if !self.fy_profit_map.contains_key(&fy) {
             self.fy_profit_map.insert(fy, profit);
