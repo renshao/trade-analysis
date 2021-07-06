@@ -1,7 +1,17 @@
 use std::collections::HashMap;
+use chrono::NaiveDateTime;
+use crate::{TradingRecord, TradeType};
 
 struct BuyItem {
+    date: NaiveDateTime,
     shares: u32,
+    price: f32,
+    remaining_fee: f32
+}
+
+struct InventoryItem {
+    date_acquired: NaiveDateTime,
+    quantity: u32,
     price: f32,
     remaining_fee: f32
 }
@@ -12,7 +22,29 @@ pub struct Fulfillment {
     pub(crate) net_profit: f32
 }
 
+// Output of Inventory is a list of ConsolidatedTransaction in chronological ordered
+pub struct ConsolidatedTransaction {
+    date: NaiveDateTime,
+    trade_type: TradeType,
+    code: String,
+    quantity: u32,
+    price: f32,
+    fee: f32,
+    amount_settled: f32, // for buy: quantity * price + fee, for sell: quantity * price - fee
+    fulfillments: Option<Vec<SellingFulfillment>>,
+    net_profit: f32
+}
+
+pub struct SellingFulfillment {
+    date_purchased: NaiveDateTime,
+    purchase_price: f32,
+    quantity: u32,
+    purchase_fee: f32,
+    selling_fee: f32
+}
+
 pub struct Inventory {
+    inventory_items: HashMap<String, Vec<InventoryItem>>,
     shares_map: HashMap<String, Vec<BuyItem>>,
     // financial year -> profit
     pub(crate) fy_profit_map: HashMap<u32, f32>
@@ -21,17 +53,56 @@ pub struct Inventory {
 impl Inventory {
     pub fn new() -> Inventory {
         Inventory {
+            inventory_items: HashMap::new(),
             shares_map: HashMap::new(),
             fy_profit_map: HashMap::new()
         }
     }
 
-    pub fn buy(&mut self, code: &str, volume: u32, price: f32, fee: f32) {
+    // pub fn consolidated_transactions(&self) -> Vec<ConsolidatedTransaction> {
+    //
+    // }
+
+    pub fn record_transaction(&mut self, trading_record: &TradingRecord) {
+        let code = String::from(&trading_record.code);
+        let inventory_items = self.inventory_items.entry(code).or_insert(Vec::new());
+
+        match trading_record.buy_or_sell {
+            TradeType::BUY => {
+                Inventory::record_buy(inventory_items, trading_record);
+            },
+            TradeType::SELL => {
+
+            },
+            TradeType::DIV => {
+
+            }
+        }
+    }
+
+    fn record_buy(inventory_items: &mut Vec<InventoryItem>, trading_record: &TradingRecord) {
+        let mut i: usize = 0;
+        for item in inventory_items.iter() {
+            if trading_record.date < item.date_acquired {
+                break;
+            }
+            i += 1;
+        }
+        inventory_items.insert(i, InventoryItem {
+            date_acquired: trading_record.date,
+            quantity: trading_record.volume,
+            price: trading_record.price,
+            remaining_fee: trading_record.fee
+        });
+    }
+
+    pub fn buy(&mut self, date: NaiveDateTime, code: &str, volume: u32, price: f32, fee: f32) {
         if !self.shares_map.contains_key(code) {
             self.shares_map.insert(String::from(code), Vec::new());
         }
 
         self.shares_map.get_mut(code).unwrap().push(BuyItem {
+            date,
             shares: volume,
             price: price,
             remaining_fee: fee

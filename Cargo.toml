@@ -11,4 +11,4 @@ csv = "1.1"
 serde = { version = "1", features = ["derive"] }
 prettytable-rs = "^0.8"
 term = "*"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
