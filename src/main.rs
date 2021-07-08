@@ -76,22 +76,26 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                     cell = cell.with_style(ForegroundColor(color::RED));
                 }
                 row.add_cell(cell);
-                table.add_row(row);
+
+                let mut fulfill_table = Table::new();
+                fulfill_table.set_titles(row!["Qty", "Purchase Price", "Diff %", "Fees", "Net Profit", "Acquired Duration"]);
+                let fulfill_table_format = format::FormatBuilder::from(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR)
+                    .separators(&[format::LinePosition::Bottom], format::LineSeparator::new('=', '=', '+', '+')).build();
+                fulfill_table.set_format(fulfill_table_format);
 
                 for f in t.fulfillments.as_ref().unwrap() {
-                    let mut row = row!["", "", "", "", "", "", "", ""];
-                    row.add_cell(Cell::new_align(&format!("{} x ({:.3} - {:.3}) = {:.2}", f.quantity, t.price, f.purchase_price, f.quantity as f32 * (t.price - f.purchase_price)), RIGHT));
-                    table.add_row(row);
-                    let mut row = row!["", "", "", "", "", "", "", ""];
-                    row.add_cell(Cell::new_align(&format!("Acquired duration: {} days", f.acquired_duration.num_days()), RIGHT));
-                    table.add_row(row);
-                    let mut row = row!["", "", "", "", "", "", "", ""];
-                    row.add_cell(Cell::new_align(&format!("Purchase fee: -{:.2}", f.purchase_fee), RIGHT));
-                    table.add_row(row);
-                    let mut row = row!["", "", "", "", "", "", "", ""];
-                    row.add_cell(Cell::new_align(&format!("Selling fee: -{:.2}", f.selling_fee), RIGHT));
-                    table.add_row(row);
+                    let mut row = row![];
+                    row.add_cell(Cell::new_align(&f.quantity.to_string(), RIGHT));
+                    row.add_cell(Cell::new_align(&format!("{:.3}", f.purchase_price), RIGHT));
+                    row.add_cell(Cell::new_align(&format!("{:.1}", (t.price - f.purchase_price) / f.purchase_price * 100.0), RIGHT));
+                    row.add_cell(Cell::new_align(&format!("{:.2}", f.purchase_fee + f.selling_fee), RIGHT));
+                    row.add_cell(Cell::new_align(&format!("{:.2}", f.profit), RIGHT));
+                    row.add_cell(Cell::new_align(&format!("{} days", f.acquired_duration.num_days()), RIGHT));
+                    fulfill_table.add_row(row);
                 }
+
+                row.add_cell(Cell::new(&fulfill_table.to_string()));
+                table.add_row(row);
             }
             TradeType::DIV => {
                 row.add_cell(Cell::new(""));
