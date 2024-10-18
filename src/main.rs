@@ -6,14 +6,13 @@ use std::{io, fmt};
 use std::process;
 use std::fs::File;
 use serde::Deserialize;
-use prettytable::{Table, Cell};
+use prettytable::{Attr, Cell, Table};
 use prettytable::format;
 use prettytable::format::Alignment;
 use crate::inventory::Inventory;
 use prettytable::{color};
 use chrono::{NaiveDateTime};
 use Alignment::RIGHT;
-use term::Attr::ForegroundColor;
 
 #[derive(Debug, Clone, Deserialize)]
 pub enum TradeType {
@@ -71,9 +70,9 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
                 row.add_cell(Cell::new_align(&format!("{:.2}", t.amount_settled), RIGHT));
                 let mut cell = Cell::new_align(&format!("{:.2}", t.net_profit), RIGHT);
                 if t.net_profit >= 0.0 {
-                    cell = cell.with_style(ForegroundColor(color::GREEN));
+                    cell = cell.with_style(Attr::ForegroundColor(color::GREEN));
                 } else  {
-                    cell = cell.with_style(ForegroundColor(color::RED));
+                    cell = cell.with_style(Attr::ForegroundColor(color::RED));
                 }
                 row.add_cell(cell);
 
@@ -100,7 +99,7 @@ fn read_transactions() -> Result<(), Box<dyn Error>> {
             TradeType::DIV => {
                 row.add_cell(Cell::new(""));
                 row.add_cell(Cell::new_align(&format!("{:.2}", t.amount_settled), RIGHT));
-                row.add_cell(Cell::new_align(&format!("{:.2}", t.net_profit), RIGHT).with_style(ForegroundColor(color::GREEN)));
+                row.add_cell(Cell::new_align(&format!("{:.2}", t.net_profit), RIGHT).with_style(Attr::ForegroundColor(color::GREEN)));
                 table.add_row(row);
             }
         }
